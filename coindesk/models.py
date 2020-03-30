@@ -1,12 +1,12 @@
-from coindesk import rpc_pb2 as ln, rpc_pb2_grpc as lnrpc
-
-from django.db import models
-from django.conf import settings
-from django.contrib.auth.models import User
-from django.contrib import admin
-
 import codecs
-import grpc
+
+from django.conf import settings
+from django.contrib import admin
+from django.contrib.auth.models import User
+from django.db import models
+
+from coindesk import rpc_pb2 as ln
+from coindesk.utils.lnd_helper import get_ln_stub
 
 
 class Profile(models.Model):
@@ -18,7 +18,6 @@ class Profile(models.Model):
 
 
 class Article(models.Model):
-
     ARTICLE_STATUS_CHOICES = (
         ('visible', 'Visible'),
         ('deleted by admin', 'Deleted by admin'),
@@ -35,7 +34,7 @@ class Article(models.Model):
 
     @property
     def upvotes(self):
-        raise NotImplementedError()
+        # raise NotImplementedError()
         return self.payments.filter(status='complete', purpose='upvote').count()
 
     def __str__(self):
@@ -46,9 +45,8 @@ class Article(models.Model):
 
 
 class Payment(models.Model):
-
     PAYMENT_STATUS_CHOICES = (
-        ('pending_invoice', 'Pending Invoice'), # Should be atomic
+        ('pending_invoice', 'Pending Invoice'),  # Should be atomic
         ('pending_payment', 'Pending Payment'),
         ('complete', 'Complete'),
         ('error', 'Error'),
@@ -76,9 +74,7 @@ class Payment(models.Model):
         Generates a new invoice
         """
         assert self.status == 'pending_invoice', "Already generated invoice"
-        creds = grpc.ssl_channel_credentials(open(settings.CERT_PATH).read())
-        channel = grpc.secure_channel(settings.LND_RPCHOST, creds)
-        stub = lnrpc.LightningStub(channel)
+        stub = get_ln_stub()
 
         add_invoice_resp = stub.AddInvoice(ln.Invoice(value=settings.MIN_VIEW_AMOUNT, memo="User '{}' | ArticleId {}".format(user.username, article.id)))
         r_hash_base64 = codecs.encode(add_invoice_resp.r_hash, 'base64')
@@ -94,12 +90,11 @@ class Payment(models.Model):
         if self.status == 'pending_invoice':
             return False
 
-        creds = grpc.ssl_channel_credentials(open(settings.CERT_PATH).read())
-        channel = grpc.secure_channel(settings.LND_RPCHOST, creds)
-        stub = lnrpc.LightningStub(channel)
+        stub = get_ln_stub()
 
         r_hash_base64 = self.r_hash.encode('utf-8')
-        r_hash_bytes = str(codecs.decode(r_hash_base64, 'base64'))
+        # r_hash_bytes = str(codecs.decode(r_hash_base64, 'base64'))
+        r_hash_bytes = codecs.decode(r_hash_base64, 'base64')
         invoice_resp = stub.LookupInvoice(ln.PaymentHash(r_hash=r_hash_bytes))
 
         if invoice_resp.settled:
@@ -110,6 +105,7 @@ class Payment(models.Model):
         else:
             # Payment not received
             return False
+
 
 admin.site.register(Profile)
 admin.site.register(Payment)

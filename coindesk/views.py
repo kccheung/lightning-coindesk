@@ -83,11 +83,11 @@ def article(request, pk):
 
     # User client requests that we check if the payment has been made
     if request.GET.get('check'):
-        print "Checking for payment {}".format(payment.payment_request)
+        print("Checking for payment {}".format(payment.payment_request))
         if payment.check_payment():
-            print "Payment succeeded!"
+            print("Payment succeeded!")
         else:
-            print "Payment not received"
+            print("Payment not received")
 
     if payment.status == 'pending_invoice':
         payment.generate_invoice(request.user, article)

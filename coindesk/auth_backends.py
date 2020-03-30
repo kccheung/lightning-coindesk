@@ -1,22 +1,21 @@
-from coindesk import rpc_pb2 as ln, rpc_pb2_grpc as lnrpc
-from coindesk.models import Profile
-from django.conf import settings
 from django.contrib.auth.models import User
 
-import grpc
+from coindesk import rpc_pb2 as ln
+from coindesk.models import Profile
+from coindesk.utils.lnd_helper import get_ln_stub
 
 
 class SignatureBackend(object):
 
     def authenticate(self, request, signature, csrf_token, username=None):
-        creds = grpc.ssl_channel_credentials(open(settings.CERT_PATH).read())
-        channel = grpc.secure_channel(settings.LND_RPCHOST, creds)
-        stub = lnrpc.LightningStub(channel)
+        stub = get_ln_stub()
+        print(stub.GetInfo(ln.GetInfoRequest()))
 
-        verifymessage_resp = stub.VerifyMessage(ln.VerifyMessageRequest(msg=csrf_token, signature=signature))
+        verifymessage_resp = stub.VerifyMessage(ln.VerifyMessageRequest(msg=bytes(csrf_token, 'utf-8'), signature=signature))
+        # verifymessage_resp = stub.VerifyMessage(ln.VerifyMessageRequest(msg=bytearray(csrf_token, encoding='utf-8'), signature=signature))
 
         if not verifymessage_resp.valid:
-            print "Invalid signature"
+            print("Invalid signature")
             return None
 
         pubkey = verifymessage_resp.pubkey
@@ -26,7 +25,7 @@ class SignatureBackend(object):
             return profile.user
         except Profile.DoesNotExist:
             # Create a new profile if they provided a username
-            if len(username) > 3 and len(username) < 36:
+            if 3 < len(username) < 36:
                 user = User(username=username)
                 user.save()
                 profile, created = Profile.objects.get_or_create(

@@ -29,6 +29,8 @@ elif platform.system() == "Linux":
 elif platform.system() == "Windows":
     CERT_PATH = os.path.join(os.getenv('APPDATA'), 'Local', 'Lnd', 'tls.cert')
 
+MACAROON_PATH = os.path.join(os.getenv('HOME'), 'Downloads/_bitcoin/_lnd/admin.macaroon')
+
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/1.10/howto/deployment/checklist/
 
@@ -52,6 +54,7 @@ INSTALLED_APPS = [
     'whitenoise.runserver_nostatic',
     'django.contrib.staticfiles',
 
+    'django_extensions',
     'coindesk'
 ]
 
